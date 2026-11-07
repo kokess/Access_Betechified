@@ -3,18 +3,251 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Like Button Example</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>To-Do List</title>
+    <style>
+        :root {
+            --bg: #f6f5f1;
+            --card: #ffffff;
+            --text: #1d1d1b;
+            --muted: #77756e;
+            --line: #e4e2db;
+            --accent: #2f6f4f;
+            --danger: #b3382c;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #161614;
+                --card: #212120;
+                --text: #f1efe8;
+                --muted: #9a978d;
+                --line: #34332f;
+                --accent: #5fb98a;
+                --danger: #e8776b;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 24px 16px;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        }
+
+        .app {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            margin: 0 0 4px;
+        }
+
+        .count {
+            color: var(--muted);
+            font-size: .9rem;
+            margin-bottom: 16px;
+        }
+
+        form {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 14px;
+            font-size: 1rem;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--card);
+            color: var(--text);
+        }
+
+        input[type="text"]:focus {
+            outline: 2px solid var(--accent);
+            border-color: transparent;
+        }
+
+        button {
+            font: inherit;
+            cursor: pointer;
+            border: 0;
+            border-radius: 10px;
+        }
+
+        .add {
+            padding: 0 18px;
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .filters {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .filters button {
+            padding: 6px 12px;
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--line);
+            font-size: .85rem;
+        }
+
+        .filters button.active {
+            background: var(--text);
+            color: var(--bg);
+            border-color: var(--text);
+        }
+
+        ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+
+        li input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--accent);
+        }
+
+        li span {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        li.done span {
+            text-decoration: line-through;
+            color: var(--muted);
+        }
+
+        .del {
+            background: transparent;
+            color: var(--danger);
+            font-size: 1.2rem;
+            padding: 0 6px;
+        }
+
+        .empty {
+            text-align: center;
+            color: var(--muted);
+            padding: 24px 0;
+        }
+
+        .clear {
+            margin-top: 8px;
+            background: transparent;
+            color: var(--muted);
+            font-size: .85rem;
+            text-decoration: underline;
+        }
+    </style>
 </head>
 
 <body>
-    <div class="card">
-        <h2>Enjoying this post?</h2>
-        <!-- The button and counter display -->
-        <button id="likeBtn">❤️ Like</button>
-        <p>Likes: <span id="likeCount">0</span></p>
+    <div class="app">
+        <h1>To-Do List</h1>
+        <div class="count" id="count"></div>
+        <form id="form">
+            <input type="text" id="input" placeholder="Add a task…" autocomplete="off" required>
+            <button class="add" type="submit">Add</button>
+        </form>
+        <div class="filters" id="filters">
+            <button data-filter="all" class="active">All</button>
+            <button data-filter="active">Active</button>
+            <button data-filter="done">Done</button>
+        </div>
+        <ul id="list"></ul>
+        <button class="clear" id="clear">Clear completed</button>
     </div>
-    <script src="script.js"></script>
+    <script>
+        const form = document.getElementById('form');
+        const input = document.getElementById('input');
+        const list = document.getElementById('list');
+        const count = document.getElementById('count');
+        const filters = document.getElementById('filters');
+        const clearBtn = document.getElementById('clear');
+        let tasks = [];
+        let filter = 'all';
+        try { tasks = JSON.parse(localStorage.getItem('tasks')) || []; } catch (e) { tasks = []; }
+        function save() {
+            try { localStorage.setItem('tasks', JSON.stringify(tasks)); } catch (e) { }
+        }
+        function render() {
+            list.innerHTML = '';
+            const visible = tasks.filter(t =>
+                filter === 'all' ? true : filter === 'done' ? t.done : !t.done);
+            if (!visible.length) {
+                const empty = document.createElement('div');
+                empty.className = 'empty';
+                empty.textContent = 'Nothing here yet.';
+                list.appendChild(empty);
+            }
+            visible.forEach(t => {
+                const li = document.createElement('li');
+                if (t.done) li.className = 'done';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = t.done;
+                cb.onchange = () => { t.done = cb.checked; save(); render(); };
+                const span = document.createElement('span');
+                span.textContent = t.text;
+                const del = document.createElement('button');
+                del.className = 'del';
+                del.textContent = '×';
+                del.setAttribute('aria-label', 'Delete task');
+                del.onclick = () => { tasks = tasks.filter(x => x.id !== t.id); save(); render(); };
+                li.append(cb, span, del);
+                list.appendChild(li);
+            });
+            const left = tasks.filter(t => !t.done).length;
+            count.textContent = left + (left === 1 ? ' task' : ' tasks') + ' left';
+        }
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if (!text) return;
+            tasks.unshift({ id: Date.now(), text, done: false });
+            input.value = '';
+            save(); render();
+        });
+        filters.addEventListener('click', e => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            filter = btn.dataset.filter;
+            filters.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+            render();
+        });
+        clearBtn.addEventListener('click', () => {
+            tasks = tasks.filter(t => !t.done);
+            save(); render();
+        });
+        render();
+    </script>
 </body>
 
 </html>
